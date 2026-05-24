@@ -1,12 +1,10 @@
-export async function getIdempotencyEntry(
-  _key?: string
-) {
-  return null;
+export async function getIdempotencyEntry(key?: string) {
+  return null as any;
 }
 
 export async function setIdempotencyEntry(
-  _key?: string,
-  _value?: unknown
+  key?: string,
+  value?: any
 ) {
   return null;
 }
