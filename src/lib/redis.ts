@@ -9,11 +9,17 @@ export async function setIdempotencyEntry(
   return null;
 }
 
-export async function acquireLock() {
+export async function acquireLock(
+  key?: string,
+  token?: string
+) {
   return true;
 }
 
-export async function releaseLock() {
+export async function releaseLock(
+  key?: string,
+  token?: string
+) {
   return true;
 }
 
