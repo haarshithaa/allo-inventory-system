@@ -102,73 +102,87 @@ export async function POST(request: NextRequest) {
     // The lock prevents concurrent requests from both reading "available > 0"
     // before either has written. The transaction ensures the read-check-write
     // is atomic at the DB level too (defence in depth).
-    const result = await prisma.$transaction(async (tx) => {
-      // Re-read stock inside the transaction with a row-level lock
-      // Using raw SQL for SELECT ... FOR UPDATE to lock the row
-      const stockRows = await tx.$queryRaw<
-        Array<{
-          id: string;
-          total_units: number;
-          reserved_units: number;
-        }>
-      >`
-        SELECT id, total_units, reserved_units
-        FROM stock_levels
-        WHERE product_id = ${productId}
-          AND warehouse_id = ${warehouseId}
-        FOR UPDATE
-      `;
+const result = await prisma.$transaction(async (tx) => {
+  // Lock stock row
+  const stockRows = await tx.$queryRaw<
+    Array<{
+      id: string;
+      totalUnits: number;
+      reservedUnits: number;
+    }>
+  >`
+    SELECT id, "totalUnits", "reservedUnits"
+    FROM "stock_levels"
+    WHERE "productId" = ${productId}
+      AND "warehouseId" = ${warehouseId}
+    FOR UPDATE
+  `;
 
-      if (stockRows.length === 0) {
-        return {
-          success: false as const,
-          status: 404,
-          error: "No stock record found for this product/warehouse combination",
-        };
-      }
+  if (stockRows.length === 0) {
+    return {
+      success: false as const,
+      status: 404,
+      error:
+        "No stock record found for this product/warehouse combination",
+    };
+  }
 
-      const stock = stockRows[0];
-      const available = stock.total_units - stock.reserved_units;
+  const stock = stockRows[0];
 
-      if (available < quantity) {
-        return {
-          success: false as const,
-          status: 409,
-          error: `Insufficient stock. Requested: ${quantity}, available: ${available}`,
-          code: "INSUFFICIENT_STOCK",
-        };
-      }
+  const available =
+    stock.totalUnits - stock.reservedUnits;
 
-      // Increment reserved units
-      await tx.$executeRaw`
-        UPDATE stock_levels
-        SET reserved_units = reserved_units + ${quantity},
-            updated_at = NOW()
-        WHERE id = ${stock.id}
-      `;
+  if (available < quantity) {
+    return {
+      success: false as const,
+      status: 409,
+      error: `Insufficient stock. Requested: ${quantity}, available: ${available}`,
+      code: "INSUFFICIENT_STOCK",
+    };
+  }
 
-      // Create the reservation
-      const expiresAt = new Date(
-        Date.now() + RESERVATION_TTL_MINUTES * 60 * 1000
-      );
+  // Increase reserved units
+  await tx.$executeRaw`
+    UPDATE "stock_levels"
+    SET "reservedUnits" = "reservedUnits" + ${quantity}
+    WHERE id = ${stock.id}
+  `;
 
-      const reservation = await tx.reservation.create({
-        data: {
-          productId,
-          warehouseId,
-          quantity,
-          status: "PENDING",
-          expiresAt,
-          idempotencyKey: idempotencyKey ?? undefined,
+  // Create reservation
+  const expiresAt = new Date(
+    Date.now() + RESERVATION_TTL_MINUTES * 60 * 1000
+  );
+
+  const reservation = await tx.reservation.create({
+    data: {
+      productId,
+      warehouseId,
+      quantity,
+      status: "PENDING",
+      expiresAt,
+      idempotencyKey:
+        idempotencyKey ?? undefined,
+    },
+    include: {
+      product: {
+        select: {
+          name: true,
+          sku: true,
         },
-        include: {
-          product: { select: { name: true, sku: true } },
-          warehouse: { select: { name: true } },
+      },
+      warehouse: {
+        select: {
+          name: true,
         },
-      });
+      },
+    },
+  });
 
-      return { success: true as const, reservation };
-    });
+  return {
+    success: true as const,
+    reservation,
+  };
+});
 
     if (!result.success) {
       const responseBody = {

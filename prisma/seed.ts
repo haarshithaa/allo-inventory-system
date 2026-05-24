@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -60,7 +61,7 @@ async function main() {
           "Apple M3 chip, 8GB RAM, 256GB SSD, 15.3-inch Liquid Retina display",
         sku: "APP-MBA-15-M3-256",
         imageUrl:
-          "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba15-midnight-select-202402?wid=400&hei=400&fmt=jpeg",
+          "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
       },
     }),
     prisma.product.create({
@@ -80,7 +81,7 @@ async function main() {
           "M2 chip, 11-inch Liquid Retina display, 128GB, Wi-Fi + Cellular",
         sku: "APP-IPAD-AIR-M2-128",
         imageUrl:
-          "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ipad-air-select-wifi-blue-202405?wid=400&hei=400&fmt=jpeg",
+          "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0",
       },
     }),
     prisma.product.create({
@@ -90,7 +91,7 @@ async function main() {
           "S9 chip, 45mm Aluminium Case, GPS, Always-On Retina display",
         sku: "APP-WATCH-S9-45",
         imageUrl:
-          "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MR9A3ref_VW_34FR+watch-45-alum-midnight-nc-9s_VW_34FR_WF_CO?wid=400&hei=400&fmt=jpeg",
+          "https://images.unsplash.com/photo-1546868871-7041f2a55e12",
       },
     }),
   ]);
