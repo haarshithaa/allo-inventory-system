@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockLevels  StockLevel[]
+  reservations Reservation[]
+
+  @@map("warehouses")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sku         String   @unique
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stockLevels  StockLevel[]
+  reservations Reservation[]
+
+  @@map("products")
+}
+
+// Stock level per product per warehouse
+// available = totalUnits - reservedUnits
+model StockLevel {
+  id            String   @id @default(cuid())
+  productId     String
+  warehouseId   String
+  totalUnits    Int      @default(0)
+  reservedUnits Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@map("stock_levels")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  RELEASED
+}
+
+model Reservation {
+  id          String            @id @default(cuid())
+  productId   String
+  warehouseId String
+  quantity    Int
+  status      ReservationStatus @default(PENDING)
+  expiresAt   DateTime
+  confirmedAt DateTime?
+  releasedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Idempotency key for deduplication
+  idempotencyKey String? @unique
+
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@index([status, expiresAt])
+  @@index([productId, warehouseId, status])
+  @@map("reservations")
+}
+
+// Idempotency store for caching responses
+model IdempotencyRecord {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  responseBody String   // JSON-serialized response
+  statusCode   Int
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
